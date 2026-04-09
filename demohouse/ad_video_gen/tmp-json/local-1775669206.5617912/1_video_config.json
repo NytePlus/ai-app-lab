@@ -1,0 +1,20 @@
+{
+    "video_type": "商品展示视频",
+    "product_info": {
+        "name": "《三体全3册套装》",
+        "selling_point": "刘慈欣代表作，亚洲雨果奖获奖作品，中国科幻基石丛书，包含三体123黑暗森林死神永生",
+        "resources": [
+            "https://img3m7.ddimg.cn/55/25/25353757-1_x_2.jpg",
+            "https://img3m3.ddimg.cn/88/28/20989573-1_x_1739864225.jpg",
+            "https://img3m5.ddimg.cn/17/24/25141265-1_x_1772098521.jpg",
+            "https://img3m4.ddimg.cn/32/35/23579654-2_x_1740123779.jpg",
+            "https://img3m4.ddimg.cn/32/35/23579654-3_x_1740123779.jpg"
+        ],
+        "audience": "科幻小说爱好者，刘慈欣读者，文学爱好者，学生群体"
+    },
+    "video_advice": "1. 展示书籍封面及套装整体外观，突出设计质感。2. 呈现雨果奖等荣誉标识，强调作品权威性。3. 快速翻阅内页，展现内容厚度与排版",
+    "status": {
+        "success": true,
+        "message": ""
+    }
+}

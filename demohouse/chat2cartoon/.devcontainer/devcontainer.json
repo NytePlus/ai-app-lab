@@ -1,0 +1,16 @@
+{
+  "name": "ai-app-lab (chat2cartoon)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "18",
+      "pnpm": "8"
+    }
+  },
+  "workspaceFolder": "/workspaces/ai-app-lab",
+  "forwardPorts": [8080, 8888],
+  "remoteUser": "root",
+}

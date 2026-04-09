@@ -1,0 +1,23 @@
+{
+  "name": "ad_video_gen (veadk multi-agent)",
+  "build": {
+    "dockerfile": "./Dockerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "remoteUser": "root",
+  "forwardPorts": [8000, 8001, 8002, 8003, 8004, 8005],
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/demohouse/ad_video_gen/backend/.venv/bin/python",
+        "python.terminal.activateEnvironment": true
+      }
+    }
+  },
+  "containerEnv": {
+    "http_proxy": "http://host.docker.internal:7890",
+    "https_proxy": "http://host.docker.internal:7890",
+    "NO_PROXY": "localhost,127.0.0.1,0.0.0.0,::1"
+  },
+}

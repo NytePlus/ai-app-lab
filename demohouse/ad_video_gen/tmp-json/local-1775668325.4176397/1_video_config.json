@@ -1,0 +1,14 @@
+{
+    "video_type": "",
+    "product_info": {
+        "name": "",
+        "selling_point": "",
+        "resources": [],
+        "audience": ""
+    },
+    "video_advice": "",
+    "status": {
+        "success": false,
+        "message": "无法从提供的链接中获取商品相关信息，链接内容为火山引擎账号登录页面，未包含商品名称、卖点等必要素材"
+    }
+}

@@ -319,7 +319,7 @@ if __name__ == "__main__":
     )
     logger = logging.getLogger(__name__)
 
-    user_need = "帮我生成杨梅饮料的宣传视频（商品展示视频），图片素材为：https://ark-tutorial.tos-cn-beijing.volces.com/multimedia/%E6%9D%A8%E6%A2%85%E9%A5%AE%E6%96%99.jpg"
+    user_need = "帮我生成这个书的宣传视频，链接为https://product.dangdang.com/23579654.html"
     logger.info(f"!!!! main output: test_type:{t_type}, url_template: {url_template}")
 
     # 调用主函数

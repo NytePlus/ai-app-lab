@@ -97,7 +97,8 @@ async def generate(prompt, first_frame_image=None, last_frame_image=None):
         last_frame_image = await resolve_short_url(last_frame_image)
 
     # Build the content array
-    prompt_with_media = f"（可以有极其轻度的动作音，但禁止任何人声，禁止背景音乐，禁止音效，禁止旁白，禁止解说）{prompt}"
+    # prompt_with_media = f"（可以有极其轻度的动作音，但禁止任何人声，禁止背景音乐，禁止音效，禁止旁白，禁止解说）{prompt}"
+    promt_with_media = f"{prompt}"
     content = [{"type": "text", "text": prompt_with_media}]
 
     if first_frame_image and last_frame_image:
@@ -122,7 +123,7 @@ async def generate(prompt, first_frame_image=None, last_frame_image=None):
     request_body = {
         "model": model,
         "content": content,
-        # "generate_audio": True,       # for seedance 1.5 pro only
+        "generate_audio": True,       # for seedance 1.5 pro only
         "duration": 5,
     }
 

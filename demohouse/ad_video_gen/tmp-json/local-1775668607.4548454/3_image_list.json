@@ -1,0 +1,7 @@
+{
+    "image_list": [],
+    "status": {
+        "success": false,
+        "message": "image_generate Error: 生成的图片总数 (1) 与预期 (4) 不符。"
+    }
+}

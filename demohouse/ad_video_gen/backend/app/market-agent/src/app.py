@@ -152,7 +152,8 @@ a2a_app.get(
 
 # === Build mcp server ===
 
-mcp = FastMCP.from_fastapi(app=a2a_app, name=app_name, include_tags={"mcp"})
+mcp = FastMCP.from_fastapi(app=a2a_app, name=app_name)
+mcp.enable(tags={"mcp"}, only=True)
 
 # Create MCP ASGI app
 mcp_app = mcp.http_app(path="/", transport="streamable-http")
