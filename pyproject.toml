@@ -30,7 +30,8 @@ dependencies = [
     "alibabacloud_oss_v2",
     "python-dotenv",
     "openai",
-    "dashscope"
+    "dashscope",
+    "syncsdk"
 ]
 name = "arkitect"
 version = "0.2.2"

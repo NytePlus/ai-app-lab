@@ -6,6 +6,8 @@ ffmpeg service. Only the interface is defined here.
 
 import asyncio
 import json
+import ssl
+import aiohttp
 import logging
 import os
 import re
@@ -39,18 +41,28 @@ class DouyinAudioExtractor:
             self,
             state_path: str = "output/douyin_state.json",
             temp_path: str = "output/temp.mp4",
-            ffmpeg_executable: str = "demohouse/talking_head_video_gen/backend/ffmpeg/ffmpeg-master-latest-win64-gpl-shared/bin/ffmpeg.exe"
+            ffmpeg_executable: str = ""
     ):
         self.state_path = state_path
         self.temp_path = temp_path
-        self.ffmpeg_executable = ffmpeg_executable
+        self.ffmpeg_executable = ffmpeg_executable or os.getenv("FFMPEG_EXECUTABLE", "ffmpeg")
+        self.browser_type = "chromium"  # 可选 "chromium", "firefox", "webkit"
+
+    def get_browser(self, p, type):
+        if self.browser_type == "chromium":
+            browser = p.chromium
+        elif self.browser_type == "webkit":
+            browser = p.webkit
+        else:
+            browser = p.firefox
+        return browser
 
     async def login(self):
         if os.path.exists(self.state_path):
             logger.debug("检测到登录状态文件，跳过扫码登录：%s", self.state_path)
             return
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await self.get_browser(p, self.browser_type).launch(headless=False, args=["--no-proxy-server"])
             context = await browser.new_context()
             page = await context.new_page()
 
@@ -102,10 +114,10 @@ class DouyinAudioExtractor:
         video_url = extract_url_from_sharelink(sharelink)
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)  # 调试时用 False，稳定后改 True
+            browser = await self.get_browser(p, self.browser_type).launch(headless=True, args=["--no-proxy-server"])  # 调试时用 False，稳定后改 True
 
             # ==========================================
-            # 核心修改：判断状态文件是否存在，存在则加载
+            # 判断状态文件是否存在，存在则加载
             # ==========================================
             if os.path.exists(self.state_path):
                 logger.debug("加载登录状态文件：%s", self.state_path)

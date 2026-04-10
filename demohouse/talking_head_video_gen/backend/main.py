@@ -21,7 +21,7 @@ from audio_extractor import DouyinAudioExtractor, AudioExtractResult
 from copywriting_rewriter import CopywritingRewriter, CopywritingResult
 from video_generator import VideoGenerator, VideoGenerateResult
 from tts_synthesizer import CosyvoiceTTSSynthesizer, TTSResult
-from lip_sync_aligner import LipSyncAligner, LipSyncResult
+from lip_sync_aligner import Wav2LipSyncAligner, LipSyncResult
 from social_publisher import SocialPublisher, Platform, PublishResult
 
 logging.basicConfig(
@@ -78,7 +78,7 @@ class TalkingHeadPipeline:
         self.copywriting_rewriter = CopywritingRewriter()
         self.video_generator = VideoGenerator()
         self.tts_synthesizer = CosyvoiceTTSSynthesizer()
-        self.lip_sync_aligner = LipSyncAligner()
+        self.lip_sync_aligner = Wav2LipSyncAligner()
         self.social_publisher = SocialPublisher()
 
         os.makedirs(self.output_dir, exist_ok=True)
@@ -182,7 +182,7 @@ class TalkingHeadPipeline:
 async def main():
     pipeline = TalkingHeadPipeline()
     result = await pipeline.run(
-        sharelink="7.43 yTL:/ f@b.Ag 05/10 193个AI员工一键部署 github变态项目# AI # Agent # 人工智能 # github # github优质项目  https://v.douyin.com/b9EotimpSZ8/ 复制此链接，打开Dou音搜索，直接观看视频！",
+        sharelink="1.20 VlP:/ v@s.Eh 01/07 这五堂课，教你及时止损# 情感共鸣 # 人生感悟 # 爱你老已  https://v.douyin.com/3KPZkT9zlVc/ 复制此链接，打开Dou音搜索，直接观看视频！",
         video_prompt="一位年轻男销售面对镜头微笑地说话，配合着自然的手势动作，背景是简洁的办公室环境。",
         clone_audio_path="output/speaker.wav",
         first_frame_image='output/first_frame.png',
