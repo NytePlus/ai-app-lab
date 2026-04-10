@@ -2,4 +2,5 @@ aiohttp
 arkitect
 langchain
 langchain-core
+openai
 pydantic

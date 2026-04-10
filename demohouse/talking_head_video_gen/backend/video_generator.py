@@ -6,11 +6,12 @@ Approach is taken from ``ad_video_gen`` director-agent's
 
 import asyncio
 import logging
+import os
+import aiohttp
+import requests
 from dataclasses import dataclass
 
-import aiohttp
-
-import config
+from file_link import local_to_link
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class VideoGenerateResult:
     task_id: str
-    video_url: str
+    video_path: str
 
 
 class VideoGenerator:
@@ -31,10 +32,12 @@ class VideoGenerator:
         model: str = "",
         poll_interval: int = 0,
     ):
-        self.api_key = api_key or config.VIDEO_API_KEY
-        self.api_base = (api_base or config.VIDEO_API_BASE).rstrip("/")
-        self.model = model or config.VIDEO_MODEL
-        self.poll_interval = poll_interval or config.POLL_INTERVAL_SECONDS
+        output_dir = os.getenv("OUTPUT_DIR", "output")
+        self.api_key = api_key or os.getenv("VIDEO_API_KEY", "")
+        self.api_base = (api_base or os.getenv("VIDEO_API_BASE", "")).rstrip("/")
+        self.model = model or os.getenv("VIDEO_MODEL", "")
+        self.poll_interval = poll_interval or int(os.getenv("POLL_INTERVAL_SECONDS", "10"))
+        self.video_path = os.path.join(output_dir, "gen_video.mp4")
 
     def _headers(self) -> dict:
         return {
@@ -45,14 +48,14 @@ class VideoGenerator:
     async def _create_task(
         self,
         prompt: str,
-        first_frame_image: str | None = None,
+        first_frame_image_url: str | None = None,
         duration: int = 5,
     ) -> str:
         """Create a video generation task and return the task id."""
         content: list[dict] = [{"type": "text", "text": prompt}]
-        if first_frame_image:
+        if first_frame_image_url:
             content.append(
-                {"type": "image_url", "image_url": {"url": first_frame_image}}
+                {"type": "image_url", "image_url": {"url": first_frame_image_url}}
             )
 
         body = {
@@ -70,7 +73,7 @@ class VideoGenerator:
                 resp.raise_for_status()
                 data = await resp.json()
                 task_id = data["id"]
-                logger.info("Created video task %s", task_id)
+                logger.debug("视频生成任务已创建，任务ID：%s", task_id)
                 return task_id
 
     async def _poll_task(self, task_id: str) -> str:
@@ -87,7 +90,7 @@ class VideoGenerator:
 
                     if status == "succeeded":
                         video_url = result["content"]["video_url"]
-                        logger.info("Video task %s succeeded: %s", task_id, video_url)
+                        logger.debug("视频任务完成，下载地址：%s", video_url)
                         return video_url
                     elif status == "failed":
                         error = result.get("error", "unknown error")
@@ -96,8 +99,8 @@ class VideoGenerator:
                         )
                     else:
                         logger.debug(
-                            "Task %s status=%s, retrying in %ds…",
-                            task_id, status, self.poll_interval,
+                            "任务轮询中，当前状态：%s，%d秒后重试。",
+                            status, self.poll_interval,
                         )
                         await asyncio.sleep(self.poll_interval)
 
@@ -108,6 +111,18 @@ class VideoGenerator:
         duration: int = 5,
     ) -> VideoGenerateResult:
         """End-to-end: create task ➜ poll ➜ return result."""
-        task_id = await self._create_task(prompt, first_frame_image, duration)
+        if os.path.exists(self.video_path):
+            logger.debug("检测到已存在视频，跳过生成：%s", self.video_path)
+            return VideoGenerateResult(task_id="existing_file", video_path=self.video_path)
+        task_id = await self._create_task(prompt, local_to_link(first_frame_image), duration)
         video_url = await self._poll_task(task_id)
-        return VideoGenerateResult(task_id=task_id, video_url=video_url)
+        response = requests.get(video_url, stream=True)
+        response.raise_for_status()
+
+        with open(self.video_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+
+        logger.debug("视频下载并保存完成：%s", self.video_path)
+        return VideoGenerateResult(task_id=task_id, video_path=self.video_path)

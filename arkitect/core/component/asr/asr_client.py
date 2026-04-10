@@ -16,8 +16,10 @@ import asyncio
 import gzip
 import struct
 import uuid
+import time
+import aiohttp
 from abc import ABC, abstractmethod
-from typing import Any, AsyncIterable, Optional
+from typing import Any, AsyncIterable, Optional, Dict
 
 import websockets
 

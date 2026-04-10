@@ -95,7 +95,6 @@ The model outputs from the thinking stage will be integrated into the reasoning_
 ```shell
 ├── README.md
 ├── __init__.py
-├── config.py
 ├── deep_search.py # core logic
 ├── docs
 ├── poetry.lock

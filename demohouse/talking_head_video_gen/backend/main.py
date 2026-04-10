@@ -8,26 +8,54 @@ Pipeline stages:
   5. LipSyncAligner      – lip-sync alignment              (stub)
   6. SocialPublisher     – publish to social platforms      (stub)
 """
+from dotenv import load_dotenv
+load_dotenv()
 
 import asyncio
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import asdict, dataclass
+from typing import Any, Optional
 
-import config
-from audio_extractor import AudioExtractor, AudioExtractResult
+from audio_extractor import DouyinAudioExtractor, AudioExtractResult
 from copywriting_rewriter import CopywritingRewriter, CopywritingResult
 from video_generator import VideoGenerator, VideoGenerateResult
-from tts_synthesizer import TTSSynthesizer, TTSResult
+from tts_synthesizer import CosyvoiceTTSSynthesizer, TTSResult
 from lip_sync_aligner import LipSyncAligner, LipSyncResult
 from social_publisher import SocialPublisher, Platform, PublishResult
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, os.getenv("PIPELINE_LOG_LEVEL", "INFO").upper(), logging.INFO),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("aiohttp").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+
+def _to_yaml_like(data: Any, indent: int = 0) -> str:
+    space = "  " * indent
+    if isinstance(data, dict):
+        lines: list[str] = []
+        for key, value in data.items():
+            if isinstance(value, (dict, list)):
+                lines.append(f"{space}{key}:")
+                lines.append(_to_yaml_like(value, indent + 1))
+            else:
+                lines.append(f"{space}{key}: {value!r}")
+        return "\n".join(lines)
+
+    if isinstance(data, list):
+        lines = []
+        for item in data:
+            if isinstance(item, (dict, list)):
+                lines.append(f"{space}-")
+                lines.append(_to_yaml_like(item, indent + 1))
+            else:
+                lines.append(f"{space}- {item!r}")
+        return "\n".join(lines)
+
+    return f"{space}{data!r}"
 
 
 @dataclass
@@ -45,19 +73,21 @@ class TalkingHeadPipeline:
     """Orchestrate the six-stage talking-head video generation pipeline."""
 
     def __init__(self):
-        self.audio_extractor = AudioExtractor()
+        self.output_dir = os.getenv("OUTPUT_DIR", "output")
+        self.audio_extractor = DouyinAudioExtractor()
         self.copywriting_rewriter = CopywritingRewriter()
         self.video_generator = VideoGenerator()
-        self.tts_synthesizer = TTSSynthesizer()
+        self.tts_synthesizer = CosyvoiceTTSSynthesizer()
         self.lip_sync_aligner = LipSyncAligner()
         self.social_publisher = SocialPublisher()
 
-        os.makedirs(config.OUTPUT_DIR, exist_ok=True)
+        os.makedirs(self.output_dir, exist_ok=True)
 
     async def run(
         self,
-        source_video_url: str,
+        sharelink: str,
         video_prompt: str,
+        clone_audio_path: str,
         first_frame_image: Optional[str] = None,
         publish_platform: Optional[Platform] = None,
         publish_title: str = "",
@@ -65,74 +95,72 @@ class TalkingHeadPipeline:
     ) -> PipelineResult:
         result = PipelineResult()
 
-        # ── Step 1: Extract audio ───────────────────────────────────
-        logger.info("Step 1/6 – Extracting audio from source video…")
-        audio_output_path = os.path.join(config.OUTPUT_DIR, "source_audio.wav")
+        logger.info("[Step 1/6] Audio Extraction")
+        audio_output_path = os.path.join(self.output_dir, "source_audio.wav")
         try:
+            logger.debug("开始执行抖音登录校验。")
+            await self.audio_extractor.login()
+            logger.debug("开始从分享链接提取音频，输出路径：%s", audio_output_path)
             result.audio_extract = await self.audio_extractor.extract(
-                video_url=source_video_url,
+                sharelink=sharelink,
                 output_path=audio_output_path,
             )
+            logger.debug("音频提取完成：%s", result.audio_extract.audio_path)
         except NotImplementedError:
             logger.warning(
                 "AudioExtractor not implemented; skipping. "
                 "Provide audio_chunks directly to Step 2 in production."
             )
 
-        # ── Step 2: ASR + LLM rewrite ──────────────────────────────
-        logger.info("Step 2/6 – Transcribing & rewriting copywriting…")
+        logger.info("[Step 2/6] Copywriting Transcription & Rewrite")
         if result.audio_extract:
-            async def _file_chunks(path: str, chunk_size: int = 3200):
-                with open(path, "rb") as f:
-                    while chunk := f.read(chunk_size):
-                        yield chunk
-
+            logger.debug("开始ASR转写，输入音频：%s", result.audio_extract.audio_path)
             result.copywriting = await self.copywriting_rewriter.run(
-                _file_chunks(result.audio_extract.audio_path)
+                result.audio_extract.audio_path
             )
+            logger.debug("文案改写完成，改写后长度：%d", len(result.copywriting.rewritten_text))
         else:
             logger.warning("No extracted audio; skipping ASR + rewrite.")
 
-        # ── Step 3: Generate video via Seedance ─────────────────────
-        logger.info("Step 3/6 – Generating video via Seedance…")
+        logger.info("[Step 3/6] Video Generation")
+        logger.debug("开始提交视频生成任务。")
         result.video_generate = await self.video_generator.generate(
             prompt=video_prompt,
             first_frame_image=first_frame_image,
+            duration=11,
         )
+        logger.debug("视频生成完成，输出：%s", result.video_generate.video_path)
 
-        # ── Step 4: TTS synthesis ───────────────────────────────────
-        logger.info("Step 4/6 – Synthesizing speech via TTS…")
+        logger.info("[Step 4/6] Speech Synthesis")
         tts_text = (
             result.copywriting.rewritten_text
             if result.copywriting
             else video_prompt
         )
-        result.tts = await self.tts_synthesizer.synthesize(tts_text)
+        logger.debug("开始TTS合成，文本长度：%d", len(tts_text))
+        result.tts = await self.tts_synthesizer.synthesize(clone_audio_path, tts_text)
+        logger.debug("语音合成完成：%s", result.tts.audio_path)
 
-        tts_audio_path = os.path.join(config.OUTPUT_DIR, "tts_audio.pcm")
-        with open(tts_audio_path, "wb") as f:
-            f.write(result.tts.audio_data)
-        logger.info("TTS audio saved to %s", tts_audio_path)
-
-        # ── Step 5: Lip-sync alignment ──────────────────────────────
-        logger.info("Step 5/6 – Aligning lip-sync…")
-        lip_sync_output = os.path.join(config.OUTPUT_DIR, "final_video.mp4")
+        logger.info("[Step 5/6] Lip Sync Alignment")
+        lip_sync_output = os.path.join(self.output_dir, "final_video.mp4")
         try:
+            logger.debug("开始唇形对齐，目标输出：%s", lip_sync_output)
             result.lip_sync = await self.lip_sync_aligner.align(
-                video_path=result.video_generate.video_url,
-                audio_path=tts_audio_path,
+                video_path=result.video_generate.video_path,
+                audio_path=result.tts.audio_path,
                 output_path=lip_sync_output,
             )
+            logger.debug("唇形对齐完成：%s", result.lip_sync.output_video_path)
         except NotImplementedError:
             logger.warning("LipSyncAligner not implemented; skipping.")
 
-        # ── Step 6: Publish ─────────────────────────────────────────
+        logger.info("[Step 6/6] Social Publishing")
         if publish_platform:
-            logger.info("Step 6/6 – Publishing to %s…", publish_platform.value)
+            logger.debug("开始发布到平台：%s", publish_platform.value)
             final_video = (
                 result.lip_sync.output_video_path
                 if result.lip_sync
-                else result.video_generate.video_url
+                else result.video_generate.video_path
             )
             try:
                 result.publish = await self.social_publisher.publish(
@@ -141,10 +169,11 @@ class TalkingHeadPipeline:
                     description=publish_description,
                     platform=publish_platform,
                 )
+                logger.debug("视频发布完成。")
             except NotImplementedError:
                 logger.warning("SocialPublisher not implemented; skipping.")
         else:
-            logger.info("Step 6/6 – No publish platform specified; skipping.")
+            logger.debug("未指定发布平台，跳过发布。")
 
         logger.info("Pipeline complete.")
         return result
@@ -153,13 +182,13 @@ class TalkingHeadPipeline:
 async def main():
     pipeline = TalkingHeadPipeline()
     result = await pipeline.run(
-        source_video_url="https://example.com/source_video.mp4",
-        video_prompt="一位年轻女性面对镜头微笑播报新闻",
-        first_frame_image=None,
+        sharelink="7.43 yTL:/ f@b.Ag 05/10 193个AI员工一键部署 github变态项目# AI # Agent # 人工智能 # github # github优质项目  https://v.douyin.com/b9EotimpSZ8/ 复制此链接，打开Dou音搜索，直接观看视频！",
+        video_prompt="一位年轻男销售面对镜头微笑地说话，配合着自然的手势动作，背景是简洁的办公室环境。",
+        clone_audio_path="output/speaker.wav",
+        first_frame_image='output/first_frame.png',
         publish_platform=None,
     )
-    logger.info("Pipeline result: %s", result)
-
+    logger.info("Pipeline result:\n%s", _to_yaml_like(asdict(result)))
 
 if __name__ == "__main__":
     asyncio.run(main())

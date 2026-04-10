@@ -123,8 +123,8 @@ async def generate(prompt, first_frame_image=None, last_frame_image=None):
     request_body = {
         "model": model,
         "content": content,
-        "generate_audio": True,       # for seedance 1.5 pro only
-        "duration": 5,
+        "generate_audio": False,       # for seedance 1.5 pro only
+        "duration": 11,
     }
 
     # Build headers
