@@ -30,8 +30,6 @@ class ASRClient:
             self,
             app_key: str,
             access_key: str,
-            obs_key_id: str,
-            obs_key_secret: str,
             resource_id: str = "volc.seedasr.auc",
     ):
         """
@@ -41,13 +39,10 @@ class ASRClient:
         """
         self.app_key = app_key
         self.access_key = access_key
-        self.obs_key_id = obs_key_id
-        self.obs_key_secret = obs_key_secret
         self.resource_id = resource_id
         self.submit_url = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit"
         self.query_url = "https://openspeech.bytedance.com/api/v3/auc/bigmodel/query"
 
-    # TODO: 上传对象存储
     async def asr(self,
                   audio_path: str,
                   audio_format: str,

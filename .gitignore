@@ -51,3 +51,7 @@ __pycache__/
 
 dist/*.whl
 examples/**/*.json
+
+**/dist/
+**/node_modules/
+.env

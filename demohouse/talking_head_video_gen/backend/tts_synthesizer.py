@@ -6,6 +6,7 @@ Approach is taken from ``live_voice_call`` (arkitect AsyncTTSClient).
 import os
 import logging
 import asyncio
+import re
 import dashscope
 from dataclasses import dataclass, field
 from dashscope.audio.tts_v2 import VoiceEnrollmentService, SpeechSynthesizer
@@ -74,7 +75,7 @@ class CosyvoiceTTSSynthesizer:
         self._enrollment_service = VoiceEnrollmentService()
 
         # 将同步的 create_voice 放入线程池执行，防止阻塞 Event Loop
-        clone_prefix = os.path.splitext(os.path.basename(clone_audio_path))[0]
+        clone_prefix = self._build_clone_prefix(clone_audio_path)
         clone_audio_url = local_to_link(clone_audio_path)
         self.voice_id = await asyncio.to_thread(
             self._enrollment_service.create_voice,
@@ -110,6 +111,15 @@ class CosyvoiceTTSSynthesizer:
 
         # 初始化最终的合成器
         self._synthesizer = SpeechSynthesizer(model=self.model, voice=self.voice_id)
+
+    @staticmethod
+    def _build_clone_prefix(clone_audio_path: str) -> str:
+        """DashScope requires prefix length <= 10."""
+        base = os.path.splitext(os.path.basename(clone_audio_path or ""))[0]
+        cleaned = re.sub(r"[^A-Za-z0-9_-]", "", base)
+        if not cleaned:
+            cleaned = "voice"
+        return cleaned[:10]
 
     async def synthesize(self, clone_audio_path: str, text: str) -> TTSResult:
         """将传入的文本合成为音频。"""

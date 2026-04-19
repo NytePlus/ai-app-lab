@@ -19,15 +19,36 @@
 
 ```text
 backend/
+├── api.py                  # FastAPI 总入口（按 pipeline step 暴露接口）
 ├── main.py                 # Pipeline 编排入口
-├── audio_extractor.py      # Step 1 - 音频提取 (stub)
+├── audio_extractor.py      # Step 1 - 音频提取
 ├── copywriting_rewriter.py # Step 2 - ASR 转写 + LLM 改写（responses.create）
 ├── video_generator.py      # Step 3 - Seedance 视频生成
 ├── tts_synthesizer.py      # Step 4 - TTS 语音合成
-├── lip_sync_aligner.py     # Step 5 - 唇形对齐 (stub)
-├── social_publisher.py     # Step 6 - 社交平台发布 (stub)
+├── lip_sync_aligner.py     # Step 5 - 唇形对齐（sync.so / MuseTalk）
+├── social_publisher.py     # Step 6 - 社交平台发布（占位）
 └── requirements.txt
+
+frontend/
+├── src/App.jsx             # 三列工作台（左: 文案 / 中: 生成 / 右: 发布）
+├── src/api.js              # 前端接口封装
+├── src/main.jsx            # 入口与主题配置
+├── package.json
+└── .env.example
 ```
+
+## FastAPI 接口（`backend/api.py`）
+
+- `POST /api/session`：创建会话
+- `POST /api/upload/{session_id}`：上传中间素材（`first_frame` / `speaker_audio`）
+- `POST /api/step1/extract`：链接提取音频
+- `POST /api/step2/transcribe-rewrite`：ASR + 改写
+- `POST /api/step2/rewrite`：对编辑后的文案再次改写
+- `POST /api/step3/generate`：生成视频
+- `POST /api/step4/tts`：合成语音
+- `POST /api/step5/align`：唇形对齐并输出最终视频
+- `POST /api/step6/publish`：社交发布（当前为占位实现）
+- `GET /api/session/{session_id}`：查询会话状态
 
 ## Step 2（文案改写）说明
 
@@ -38,32 +59,46 @@ backend/
 
 ## 环境变量
 
-必填（按你当前流程）：
+必填：
 
-| 变量 | 说明 |
-|------|------|
-| `ASR_APP_KEY` / `ASR_ACCESS_KEY` | ASR 凭证 |
-| `LLM_API_KEY` / `LLM_API_BASE` / `LLM_MODEL` | 文案改写模型配置 |
-| `VIDEO_API_KEY` / `VIDEO_API_BASE` / `VIDEO_MODEL` | 视频生成模型配置 |
+| 变量 | 说明                |
+|------|-------------------|
+| `ASR_APP_KEY` / `ASR_ACCESS_KEY` | ASR 凭证（火山引擎）      |
+| `LLM_API_KEY` / `LLM_API_BASE` / `LLM_MODEL` | 文案改写模型配置（火山引擎）    |
+| `VIDEO_API_KEY` / `VIDEO_API_BASE` / `VIDEO_MODEL` | 视频生成模型配置（火山引擎）    |
 | `DASHSCOPE_API_KEY` | TTS 鉴权（CosyVoice） |
-| `ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` | 本地文件上传 OSS（用于 ASR / LipSync 输入链接） |
+| `ALIBABA_CLOUD_ACCESS_KEY_ID` / `ALIBABA_CLOUD_ACCESS_KEY_SECRET` | 本地文件上传 OSS（阿里云）   |
 
 可选：
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `OUTPUT_DIR` | `output` | 输出目录 |
-| `POLL_INTERVAL_SECONDS` | `10` | 视频任务轮询间隔 |
-| `CLONE_AUDIO_PATH` | `output/speaker_audio.wav` | TTS 参考音频 |
+| 变量 | 默认值 | 说明                          |
+|------|--------|-----------------------------|
+| `OUTPUT_DIR` | `output` | 输出目录                        |
+| `POLL_INTERVAL_SECONDS` | `10` | 视频任务轮询间隔                    |
+| `CLONE_AUDIO_PATH` | `output/speaker_audio.wav` | TTS 参考音频                    |
 | `SYNC_API_KEY` | - | 使用 `Wav2LipSyncAligner` 时需要 |
-| `FFMPEG_EXECUTABLE` | `ffmpeg` | 音频 20 秒裁剪可执行路径 |
+| `FFMPEG_EXECUTABLE` | `ffmpeg` | 音频提取、裁剪可执行路径                |
 
 ## 快速运行
 
 ```bash
 cd backend
-# 设置环境变量后
-python main.py
+# 在仓库根目录安装 demo 依赖组
+# uv sync --group talking-head-video-gen
+# 或使用你当前环境的包管理方式安装 pyproject 中对应依赖
+uvicorn api:app --host 0.0.0.0 --port 8000 --reload
+```
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+前端默认请求 `http://127.0.0.1:8000`，可在 `frontend/.env` 中覆盖：
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000
 ```
 
 # 🐞 网络爬虫排查复盘文档：从 DNS 劫持到 IPv6 冲突

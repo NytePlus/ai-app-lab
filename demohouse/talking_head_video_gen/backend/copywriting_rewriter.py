@@ -48,8 +48,6 @@ class CopywritingRewriter:
         self.asr_access_key = asr_access_key or os.getenv("ASR_ACCESS_KEY", "")
         self.llm_endpoint_id = llm_endpoint_id or os.getenv("LLM_ENDPOINT_ID", "")
         self.model = model or os.getenv("LLM_MODEL", "doubao-seed-1-6-251015")
-        self.obs_key_id = obs_key_id or os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID", "")
-        self.obs_key_secret = obs_key_secret or os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "")
         self.llm_api_key = llm_api_key or os.getenv("LLM_API_KEY", "")
         self.llm_base_url = (llm_base_url or os.getenv("LLM_API_BASE", "")).rstrip("/")
         self._asr_client = None
@@ -62,8 +60,6 @@ class CopywritingRewriter:
         self._asr_client = ASRClient(
             app_key=self.asr_app_key,
             access_key=self.asr_access_key,
-            obs_key_id=self.obs_key_id,
-            obs_key_secret=self.obs_key_secret,
         )
 
     async def transcribe(self, audio_url: str) -> str:
